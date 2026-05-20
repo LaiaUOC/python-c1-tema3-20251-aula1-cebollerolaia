@@ -30,12 +30,24 @@ def crear_bd_desde_sql() -> sqlite3.Connection:
     """
     # Implementa aquí la creación de la base de datos:
     # 1. Si el archivo de base de datos existe, elimínalo para empezar desde cero
+    if os.path.exists(DB_PATH):
+        os.remove(DB_PATH)
+
     # 2. Conecta a la base de datos (se creará si no existe)
+    conexion = sqlite3.connect(DB_PATH)
+
     # 3. Lee el contenido del archivo SQL
+    with open(SQL_FILE_PATH, "r", encoding="utf-8") as sql_file:
+        sql_script = sql_file.read()
+
     # 4. Ejecuta el script SQL completo
+    conexion.executescript(sql_script)
+
     # 5. Haz commit de los cambios
+    conexion.commit()
+
     # 6. Devuelve la conexión
-    pass
+    return conexion
 
 def obtener_libros(conexion: sqlite3.Connection) -> List[Tuple]:
     """
@@ -49,9 +61,18 @@ def obtener_libros(conexion: sqlite3.Connection) -> List[Tuple]:
     """
     # Implementa aquí la consulta de libros:
     # 1. Crea un cursor a partir de la conexión
+    cursor = conexion.cursor()
+
     # 2. Ejecuta una consulta JOIN para obtener los libros con sus autores
+    cursor.execute("""
+        SELECT l.id, l.titulo, l.anio, a.nombre
+        FROM libros l
+        JOIN autores a ON l.autor_id = a.id
+        ORDER BY l.id
+    """)
+
     # 3. Retorna los resultados como una lista de tuplas
-    pass
+    return cursor.fetchall()
 
 def agregar_libro(conexion: sqlite3.Connection, titulo: str, anio: int, autor_id: int) -> int:
     """
@@ -68,10 +89,19 @@ def agregar_libro(conexion: sqlite3.Connection, titulo: str, anio: int, autor_id
     """
     # Implementa aquí la inserción del libro:
     # 1. Crea un cursor a partir de la conexión
+    cursor = conexion.cursor()
+
     # 2. Ejecuta una consulta INSERT INTO para añadir el libro
+    cursor.execute("""
+        INSERT INTO libros (titulo, anio, autor_id)
+        VALUES (?, ?, ?)
+    """, (titulo, anio, autor_id))
+
     # 3. Haz commit de los cambios
+    conexion.commit()
+
     # 4. Retorna el ID del nuevo libro (usar cursor.lastrowid)
-    pass
+    return cursor.lastrowid
 
 def actualizar_libro(conexion: sqlite3.Connection, libro_id: int, nuevo_titulo: Optional[str] = None,
                     nuevo_anio: Optional[int] = None, nuevo_autor_id: Optional[int] = None) -> bool:
@@ -90,11 +120,40 @@ def actualizar_libro(conexion: sqlite3.Connection, libro_id: int, nuevo_titulo: 
     """
     # Implementa aquí la actualización del libro:
     # 1. Crea un cursor a partir de la conexión
+    cursor = conexion.cursor()
+
     # 2. Verifica primero que el libro existe
+    cursor.execute("SELECT id FROM libros WHERE id = ?", (libro_id,))
+    if not cursor.fetchone():
+        return False
+    
     # 3. Prepara la consulta UPDATE con los campos que no son None
+    updates = []
+    values = []
+
+    if nuevo_titulo is not None:
+        updates.append("titulo = ?")
+        values.append(nuevo_titulo)
+    if nuevo_anio is not None:
+        updates.append("anio = ?")
+        values.append(nuevo_anio)
+    if nuevo_autor_id is not None:
+        updates.append("autor_id = ?")
+        values.append(nuevo_autor_id)
+
+    if not updates:
+        return True
+    
+    values.append(libro_id)
+
     # 4. Ejecuta la consulta y haz commit de los cambios
+    query = f"UPDATE libros SET {', '.join(updates)} WHERE id = ?"
+    cursor.execute(query, values)
+
+    conexion.commit()
+
     # 5. Retorna True si se modificó alguna fila, False en caso contrario
-    pass
+    return cursor.rowcount > 0 #cursor.rowcount indica cuantas filas se han actualizado
 
 def obtener_autores(conexion: sqlite3.Connection) -> List[Tuple]:
     """
@@ -108,9 +167,13 @@ def obtener_autores(conexion: sqlite3.Connection) -> List[Tuple]:
     """
     # Implementa aquí la consulta de autores:
     # 1. Crea un cursor a partir de la conexión
+    cursor = conexion.cursor()
+
     # 2. Ejecuta una consulta SELECT para obtener los autores
+    cursor.execute("SELECT id, nombre FROM autores ORDER BY id")
+
     # 3. Retorna los resultados como una lista de tuplas
-    pass
+    return cursor.fetchall()
 
 if __name__ == "__main__":
     try:

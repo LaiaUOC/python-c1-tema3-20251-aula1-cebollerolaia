@@ -43,7 +43,7 @@ def db_con_tablas(conexion):
 def db_con_datos(conexion):
     """Fixture que proporciona una conexión con tablas y datos de ejemplo"""
     # Execute the entire SQL script to setup tables and data
-    with open(SQL_TEST_PATH, 'r') as sql_file:
+    with open(SQL_TEST_PATH, 'r', encoding='utf-8') as sql_file:
         conexion.executescript(sql_file.read())
 
     conexion.commit()
